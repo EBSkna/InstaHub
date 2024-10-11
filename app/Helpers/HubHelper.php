@@ -3,7 +3,7 @@
 namespace App\Helpers;
 
 use App\Models\Hub;
-use Debugbar;
+use Barryvdh\Debugbar\Facades\Debugbar;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 
@@ -26,7 +26,7 @@ class HubHelper
 
         //run only on hub subdomains
         if (str_replace('{subdomain}', $domainParts[0], config('app.domain_hub')) == $host && config('app.domain_admin') != $host) {
-            $this->hub = Hub::where('name', '=', $domainParts[0])->first();
+            $this->hub = Hub::with('teacher')->where('name', '=', $domainParts[0])->first();
 
             if (! $this->hub) {
                 // hub does not exist
@@ -95,7 +95,7 @@ class HubHelper
     public function isReadOnly()
     {
         if ($this->isHub()) {
-            return (bool) $this->hub->readonly();
+            return (bool) $this->hub->readonly;
         } else {
             return false;
         }
@@ -119,6 +119,24 @@ class HubHelper
         }
     }
 
+    public function generation()
+    {
+        if ($this->isHub()) {
+            return $this->hub->generation;
+        } else {
+            return null;
+        }
+    }
+
+    public function query_level()
+    {
+        if ($this->isHub()) {
+            return $this->hub->query_level;
+        } else {
+            return null;
+        }
+    }
+
     public function url($name = null)
     {
         $protocol = $_SERVER['PROTOCOL'] = isset($_SERVER['HTTPS']) && ! empty($_SERVER['HTTPS']) ? 'https' : 'http';
@@ -133,5 +151,23 @@ class HubHelper
     public function hasTable($name)
     {
         return in_array($name, $this->tables);
+    }
+
+    public function hasTokens()
+    {
+        if ($this->isHub()) {
+            return $this->hub->teacher->hasTokens();
+        } else {
+            return false;
+        }
+    }
+
+    public function decrementTokens($count = 1)
+    {
+        if ($this->isHub()) {
+            $this->setDefaultDB();
+            $this->hub->teacher->increment('tokens_used', $count);
+            $this->setHubDB();
+        }
     }
 }
